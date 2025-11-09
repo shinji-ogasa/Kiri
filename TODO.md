@@ -3,14 +3,15 @@
 仕様書 v0.1 を落とし込むための実装タスクリスト。各フェーズは順番に進めるが、依存関係がクリアになっている項目は並列化してもよい。
 
 ## Phase 0 — Foundation
-- [ ] 必要ライブラリ導入: `@supabase/supabase-js`, `expo-blur`, `expo-image-picker`, `expo-notifications`, `zustand`, `zod`, `react-native-webrtc` (EAS 用), `expo-file-system`, `expo-document-picker`, `uuid`。
-- [ ] `.env`, `app.config.ts` で Supabase/TURN/EAS Secrets を読み込む仕組みを追加。
-- [ ] `src/` 階層 (lib, features, components, store, hooks, types, utils) を作成し、パスエイリアス設定を `tsconfig.json` に追加。
-- [ ] デザイントークン (`src/constants/tokens.ts`) と `GlassCard`/`Surface` コンポーネントを実装し、グラスモーフィズムの土台を用意。
+- [x] 必要ライブラリ導入: `@supabase/supabase-js`, `expo-blur`, `expo-image-picker`, `expo-notifications`, `zustand`, `zod`, `react-native-webrtc` (EAS 用), `expo-file-system`, `expo-document-picker`, `uuid`。
+- [x] `.env`, `app.config.ts` で Supabase/TURN/EAS Secrets を読み込む仕組みを追加。
+- [x] `src/` 階層 (lib, features, components, store, hooks, types, utils) を作成し、パスエイリアス設定を `tsconfig.json` に追加。
+- [x] デザイントークン (`src/constants/tokens.ts`) と `GlassCard`/`Surface` コンポーネントを実装し、グラスモーフィズムの土台を用意。
 - [ ] ベーステーマ (色/タイポ/スペーシング) と Global Provider (`AppProviders`) を作成。
 
 ## Phase 1 — 認証
-- [ ] Supabase クライアント (`src/lib/supabase.ts`) と API ラッパー (`auth`, `profiles`) を定義。
+- [x] Supabase クライアント (`src/lib/supabase.ts`) を定義し、AsyncStorage 連携を設定。
+- [ ] API ラッパー (`auth`, `profiles`) を整備。
 - [ ] `useAuthStore` (Zustand) でセッション管理、プロフィール同期、Push Token 保存を実装。
 - [ ] `/ (auth)/signup` 画面: フォーム UI、バリデーション (zod)、アイコンアップロード (avatars bucket)、サインアップ処理。
 - [ ] `/ (auth)/signin` 画面: メール/パスワードサインイン、エラー表示、リセット導線 (後回し可)。
