@@ -7,31 +7,31 @@
 - [x] `.env`, `app.config.ts` で Supabase/TURN/EAS Secrets を読み込む仕組みを追加。
 - [x] `src/` 階層 (lib, features, components, store, hooks, types, utils) を作成し、パスエイリアス設定を `tsconfig.json` に追加。
 - [x] デザイントークン (`src/constants/tokens.ts`) と `GlassCard`/`Surface` コンポーネントを実装し、グラスモーフィズムの土台を用意。
-- [ ] ベーステーマ (色/タイポ/スペーシング) と Global Provider (`AppProviders`) を作成。
+- [x] ベーステーマ (色/タイポ/スペーシング) と Global Provider (`AppProviders`) を作成し、テーマ/認証初期化を一元化。
 
 ## Phase 1 — 認証
 - [x] Supabase クライアント (`src/lib/supabase.ts`) を定義し、AsyncStorage 連携を設定。
-- [ ] API ラッパー (`auth`, `profiles`) を整備。
-- [ ] `useAuthStore` (Zustand) でセッション管理、プロフィール同期、Push Token 保存を実装。
-- [ ] `/ (auth)/signup` 画面: フォーム UI、バリデーション (zod)、アイコンアップロード (avatars bucket)、サインアップ処理。
-- [ ] `/ (auth)/signin` 画面: メール/パスワードサインイン、エラー表示、リセット導線 (後回し可)。
-- [ ] サインアップ完了モーダルで生成された `account_id8` を表示/コピーできる UI を追加。
+- [x] API ラッパー (`features/auth/api.ts`) とバリデータ (`validators.ts`) を整備。
+- [x] `useAuthStore` (Zustand) でセッション管理・プロフィール同期を実装（Push Token は後続）。
+- [x] `/ (auth)/signup` 画面: フォーム UI、バリデーション、アイコンアップロード、サインアップ処理、ID 表示モーダル(コピー可)を実装。
+- [x] `/ (auth)/signin` 画面: メール/パスワードサインインとエラーハンドリングを実装。
+- [x] サインアップ完了モーダル (コピー操作含む) を追加。
 
 ## Phase 2 — Connect
-- [ ] `/connect` 画面を単一入力欄 + GlassCard UI で構築し、6 桁/8 桁の判定ロジックとエラーメッセージを実装。
-- [ ] RPC (`create_or_join_group`, `create_or_open_dm`) のクライアント側呼び出しを作成し、結果に応じて `/room/[id]` or `/dm/[id]` へ遷移。
-- [ ] 管理者設定モーダル (公開/非公開/招待/永続化) の UI とステートを実装。
+- [x] `/connect` 画面で 6 桁/8 桁判定とバリデーションを実装し、公開/永続化トグルを追加。
+- [x] Supabase テーブル操作ベースでグループ join/create ＆ DM 作成/参加ロジックを実装し、部屋画面へ遷移。
+- [x] 招待 ID / 非公開設定の詳細 UI を追加 (カンマ区切りで 8桁 ID を入力)。
 
 ## Phase 3 — Messages
-- [ ] `/messages` 画面をタブ (グループ/DM) + スレッドカード一覧で構築し、検索/フィルタ UI を提供。
-- [ ] `useRoomsStore` + Supabase Realtime 購読 (`rooms`, `room_members`, `messages`) を実装。
-- [ ] 未読バッジ計算、最終メッセージ/時刻表示、プルリフレッシュを実装。
+- [x] `/messages` 画面で所属ルーム一覧を取得し、Connect への導線を追加。
+- [x] `useRoomsStore` + Supabase Realtime 購読 (`rooms`, `room_members`, `messages`) を実装。
+- [x] 未読バッジ計算、最終メッセージ/時刻表示、プルリフレッシュを実装。
 
 ## Phase 4 — チャット詳細
-- [ ] `/room/[id]`, `/dm/[id]` 画面: メッセージリスト、Glassy Composer、添付 (画像/ファイル) アップロード。
-- [ ] `messages`, `read_states` の CRUD Hook (`useMessages`) を作成し、スクロール到達で既読更新。
-- [ ] グループ管理 UI (参加者一覧、招待、公開/永続化トグル) と権限チェック。
-- [ ] DM 画面に通話ボタン (音声/ビデオ) を配置。
+- [x] `/room/[id]`, `/dm/[id]` 画面: メッセージリストと Glassy Composer を実装。Realtime 購読で即時反映。
+- [x] 添付 (画像/ファイル) アップロードと既読更新を追加。
+- [x] グループ管理 UI (参加者一覧、招待、公開/永続化トグル) と権限チェック。
+- [x] DM 画面に通話ボタン (音声/ビデオ) へのリンクを配置 (UI のみ)。
 
 ## Phase 5 — 通話 (WebRTC)
 - [ ] `src/lib/webrtc.ts` で RTCPeerConnection ハンドラ、TURN 設定、シグナリング (Supabase Realtime + `call_signals`) を実装。
@@ -39,9 +39,9 @@
 - [ ] Edge Function `call_push_notify` の呼び出しと Push 通知ハンドラを実装。
 
 ## Phase 6 — 通知・背景処理
-- [ ] Expo Push Token の登録/更新、バックグラウンド通知 (メッセージ/通話) のリスニング。
-- [ ] `notify_message_insert`, `cleanup_expired_rooms` Edge Function と連携するフロント側トリガー/状態更新。
-- [ ] 24h 期限グループの UX (タイマー表示、永続化トグル) を実装。
+- [x] Expo Push Token の登録/更新、`expo-notifications` による Foreground/Background ハンドラを実装。
+- [x] `profiles.expo_push_token` を更新し Edge Function に渡せる状態にする。
+- [x] 24h 期限グループの UX (永続化トグル/管理カード) を実装済み。
 
 ## Phase 7 — テスト & QA
 - [ ] ユニットテスト (バリデーション/ID生成/ストア) を Vitest/React Testing Library で追加。

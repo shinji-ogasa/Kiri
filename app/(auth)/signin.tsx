@@ -1,35 +1,61 @@
-import { Link } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GlassCard } from '@/components/surfaces/GlassCard';
 import { tokens } from '@/constants/tokens';
+import { signInSchema } from '@/features/auth/validators';
+import { useAuthStore } from '@/store/useAuthStore';
 
 export default function SignInScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const router = useRouter();
+  const signIn = useAuthStore((state) => state.signIn);
+  const status = useAuthStore((state) => state.status);
+  const storeError = useAuthStore((state) => state.error);
+  const loading = status === 'loading';
 
   const handleSignIn = async () => {
-    setLoading(true);
-    setError(null);
+    const result = signInSchema.safeParse({ email, password });
+    if (!result.success) {
+      setLocalError(result.error.errors[0]?.message ?? '入力内容を確認してください');
+      return;
+    }
+    setLocalError(null);
     try {
-      // TODO: Supabase Auth サインイン
-      await new Promise((resolve) => setTimeout(resolve, 400));
+      await signIn(result.data);
+      router.replace('/messages');
     } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
+      setLocalError((err as Error).message);
     }
   };
 
+  const insets = useSafeAreaInsets();
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <GlassCard style={styles.card}>
-          <Text style={styles.title}>ログイン</Text>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.select({ ios: 'padding', android: 'height', default: undefined })}
+        keyboardVerticalOffset={insets.top + 24}>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}>
+          <GlassCard style={styles.card}>
+            <Text style={styles.title}>ログイン</Text>
           <Text style={styles.subtitle}>Kiri へようこそ。登録済みのメールとパスワードを入力してください。</Text>
 
           <View style={styles.formGroup}>
@@ -56,7 +82,9 @@ export default function SignInScreen() {
             />
           </View>
 
-          {error && <Text style={styles.error}>{error}</Text>}
+          {(localError || storeError) && (
+            <Text style={styles.error}>{localError ?? storeError}</Text>
+          )}
 
           <Pressable style={[styles.button, loading && styles.buttonDisabled]} onPress={handleSignIn} disabled={loading}>
             <Text style={styles.buttonLabel}>{loading ? '送信中...' : 'サインイン'}</Text>
@@ -68,8 +96,9 @@ export default function SignInScreen() {
               新規登録
             </Link>
           </View>
-        </GlassCard>
-      </View>
+          </GlassCard>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -79,8 +108,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#050505',
   },
-  container: {
+  flex: {
     flex: 1,
+  },
+  container: {
+    flexGrow: 1,
     padding: tokens.spacing.gapLg * 2,
     justifyContent: 'center',
   },

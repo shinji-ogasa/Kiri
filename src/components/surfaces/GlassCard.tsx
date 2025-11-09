@@ -7,44 +7,36 @@ import { tokens } from '@/constants/tokens';
 type GlassCardProps = ViewProps & {
   children: ReactNode;
   /**
-   * Surface level 1 = standard card, 2 = emphasized (shadow/opacity強化)。
+   * Surface level 1 = standard card, 2 = emphasized (影/濃度アップ)。
    */
   surfaceLevel?: 1 | 2;
 };
 
 export function GlassCard({ children, style, surfaceLevel = 1, ...rest }: GlassCardProps) {
-  const Container = Platform.OS === 'ios' ? BlurView : View;
-  const extraProps =
-    Platform.OS === 'ios'
-      ? {
-          intensity: surfaceLevel === 2 ? 60 : 40,
-          tint: 'default' as const,
-        }
-      : {};
-
   return (
-    <Container
-      {...extraProps}
+    <View
       {...rest}
       style={[
-        styles.base,
+        styles.wrapper,
         surfaceLevel === 2 && styles.emphasis,
         style,
       ]}>
-      {children}
-    </Container>
+      <BlurView
+        intensity={surfaceLevel === 2 ? 70 : 50}
+        tint="default"
+        experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : undefined}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={styles.overlay} />
+      <View style={styles.content}>{children}</View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  base: {
-    padding: tokens.spacing.inset,
+  wrapper: {
     borderRadius: tokens.radius.md,
-    backgroundColor: Platform.select({
-      android: tokens.glass.bg,
-      ios: 'transparent',
-      default: tokens.glass.bg,
-    }),
+    overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: tokens.border.inner,
     shadowColor: '#000',
@@ -52,11 +44,20 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 10 },
     elevation: 3,
+    backgroundColor: 'transparent',
   },
   emphasis: {
     borderRadius: tokens.radius.lg,
-    shadowOpacity: 0.15,
-    shadowRadius: 28,
-    elevation: 6,
+    shadowOpacity: 0.18,
+    shadowRadius: 30,
+    elevation: 8,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: tokens.glass.bg,
+  },
+  content: {
+    padding: tokens.spacing.inset,
+    flexGrow: 1,
   },
 });

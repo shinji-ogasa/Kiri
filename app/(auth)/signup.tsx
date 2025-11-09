@@ -1,11 +1,25 @@
 import * as ImagePicker from 'expo-image-picker';
-import { Link } from 'expo-router';
+import * as Clipboard from 'expo-clipboard';
+import { Link, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GlassCard } from '@/components/surfaces/GlassCard';
 import { tokens } from '@/constants/tokens';
+import { signUpSchema } from '@/features/auth/validators';
+import { useAuthStore } from '@/store/useAuthStore';
 
 type AvatarAsset = {
   uri: string;
@@ -18,8 +32,15 @@ export default function SignUpScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [avatar, setAvatar] = useState<AvatarAsset | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const [successAccountId, setSuccessAccountId] = useState<string | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const router = useRouter();
+  const signUp = useAuthStore((state) => state.signUp);
+  const status = useAuthStore((state) => state.status);
+  const storeError = useAuthStore((state) => state.error);
+  const loading = status === 'loading';
 
   const pickAvatar = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -38,23 +59,43 @@ export default function SignUpScreen() {
   };
 
   const handleSignUp = async () => {
-    setLoading(true);
-    setError(null);
+    const result = signUpSchema.safeParse({ email, password, username });
+    if (!result.success) {
+      setLocalError(result.error.errors[0]?.message ?? '入力内容を確認してください');
+      return;
+    }
+    setLocalError(null);
     try {
-      // TODO: Supabase Auth サインアップ + profiles 作成
-      await new Promise((resolve) => setTimeout(resolve, 600));
+      const profile = await signUp({
+        ...result.data,
+        avatar,
+      });
+      setSuccessAccountId(profile?.account_id8 ?? null);
+      setModalVisible(true);
+      setCopied(false);
+      setUsername('');
+      setEmail('');
+      setPassword('');
+      setAvatar(null);
     } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
+      setLocalError((err as Error).message);
     }
   };
 
+  const insets = useSafeAreaInsets();
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <GlassCard style={styles.card}>
-          <Text style={styles.title}>アカウント作成</Text>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.select({ ios: 'padding', android: 'height', default: undefined })}
+        keyboardVerticalOffset={insets.top + 24}>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled">
+          <GlassCard style={styles.card}>
+            <Text style={styles.title}>アカウント作成</Text>
           <Text style={styles.subtitle}>
             ユーザーネーム・メール・パスワードを登録し、オプションでアイコンを設定します。
           </Text>
@@ -104,12 +145,16 @@ export default function SignUpScreen() {
                 <Text style={styles.avatarPlaceholderText}>Icon</Text>
               </View>
             )}
-            <Pressable style={styles.secondaryButton} onPress={pickAvatar}>
+            <Pressable
+              style={[styles.secondaryButton, styles.avatarButton]}
+              onPress={pickAvatar}>
               <Text style={styles.secondaryLabel}>{avatar ? '変更する' : 'アイコンを選択'}</Text>
             </Pressable>
           </View>
 
-          {error && <Text style={styles.error}>{error}</Text>}
+          {(localError || storeError) && (
+            <Text style={styles.error}>{localError ?? storeError}</Text>
+          )}
 
           <Pressable
             style={[styles.button, loading && styles.buttonDisabled]}
@@ -125,8 +170,41 @@ export default function SignUpScreen() {
             </Link>
           </View>
         </GlassCard>
-      </View>
-    </SafeAreaView>
+
+      </ScrollView>
+    </KeyboardAvoidingView>
+
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <GlassCard style={styles.modalCard} surfaceLevel={2}>
+            <Text style={styles.modalTitle}>登録が完了しました</Text>
+            <Text style={styles.modalSubtitle}>あなたのアカウントID (8桁) を控えてください。</Text>
+            <Text style={styles.accountId}>{successAccountId}</Text>
+            <Pressable
+              style={styles.secondaryButton}
+              onPress={async () => {
+                if (!successAccountId) return;
+                await Clipboard.setStringAsync(successAccountId);
+                setCopied(true);
+              }}>
+              <Text style={styles.secondaryLabel}>{copied ? 'コピー済み' : 'コピーする'}</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.button, styles.modalButton]}
+              onPress={() => {
+                setModalVisible(false);
+                router.replace('/connect');
+              }}>
+              <Text style={styles.buttonLabel}>Connect へ進む</Text>
+            </Pressable>
+          </GlassCard>
+        </View>
+      </Modal>
+  </SafeAreaView>
   );
 }
 
@@ -135,8 +213,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#050505',
   },
-  container: {
+  flex: {
     flex: 1,
+  },
+  container: {
+    flexGrow: 1,
     padding: tokens.spacing.gapLg * 2,
     justifyContent: 'center',
   },
@@ -193,13 +274,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   secondaryButton: {
-    flex: 1,
     borderRadius: tokens.radius.md,
     paddingVertical: 14,
     alignItems: 'center',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255,255,255,0.3)',
     backgroundColor: 'rgba(255,255,255,0.02)',
+  },
+  avatarButton: {
+    flex: 1,
   },
   secondaryLabel: {
     color: '#fff',
@@ -236,5 +319,34 @@ const styles = StyleSheet.create({
   link: {
     color: '#5AC4FF',
     fontWeight: '600',
+  },
+  accountId: {
+    color: '#fff',
+    fontSize: 24,
+    letterSpacing: 2,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    justifyContent: 'center',
+    padding: tokens.spacing.gapLg * 2,
+  },
+  modalCard: {
+    gap: tokens.spacing.gap,
+  },
+  modalTitle: {
+    fontSize: 20,
+    color: '#fff',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    color: 'rgba(255,255,255,0.7)',
+    textAlign: 'center',
+  },
+  modalButton: {
+    width: '100%',
   },
 });

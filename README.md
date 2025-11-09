@@ -61,7 +61,7 @@ Supabase を BaaS として採用し、Expo SDK 52+/React Native 0.75+ を前提
 - DM は常時保持。
 - Realtime でメッセージ/既読/メンバー更新を配信。
 - DM のみ WebRTC 通話 (音声/ビデオ、Supabase Realtime をシグナリングに利用)。
-- Expo Push + Edge Function で新規メッセージ/通話着信通知。
+- Expo Push + Edge Function で新規メッセージ/通話着信通知。タイピングインジケータは Supabase Realtime Broadcast で同期。
 
 ⸻
 
@@ -201,7 +201,8 @@ create table if not exists call_signals (
 ⸻
 
 ## 9. 通知
-- Expo Push Token を `profiles` に保存。
+- Expo Push Token を `profiles.expo_push_token` に保存し、アプリ側で `expo-notifications` を用いて権限取得/登録する。
+- Foreground/Background 通知のハンドラを設定し、対象ルームの画面遷移などに利用できるようにする。
 - 新規メッセージ・通話着信時に Edge Function が対象ユーザーのトークンへ通知。
 
 ⸻
@@ -447,6 +448,16 @@ const styles = StyleSheet.create({
 - [ ] Realtime チャネル分割 (DM/グループ) とバックオフ戦略を実装した。
 - [ ] Expo Push のレート制限/退会端末管理を Edge Function で実装した。
 - [ ] Cleanup Edge Function が 24h 経過グループを確実に削除することを検証した。
+
+## 22. Supabase セットアップ手順
+1. `supabase/migrations/001_schema.sql` を適用し、テーブル (profiles/rooms/room_members/messages/read_states/invites/call_signals) と補助関数 (`generate_account_id8` など) を作成する。`pgcrypto` 拡張を有効化すること。
+2. `supabase/migrations/002_policies.sql` を適用し、RLS ポリシーを有効化する。profiles/rooms/messages などは既に `auth.uid()` ベースで保護済み。Storage バケット `avatars` / `attachments` を作成し、該当ユーザー/ルームメンバーにのみアクセスを許可する。
+3. `supabase/migrations/003_rpcs.sql` を適用し、アプリから利用する RPC (`create_or_join_group`, `create_or_open_dm`, `post_message`, `set_room_visibility`, `set_room_persistence`) をデプロイする。
+4. Storage:
+   - `avatars` バケット: public read (authenticated) + owner write。`uploadAvatar` が利用。
+   - `attachments` バケット: private (署名 URL 経由)。`sendAttachmentMessage` が利用。
+5. Realtime: `messages` / `room_members` テーブルをサブスクライブするため、Supabase プロジェクトの Realtime 設定で該当テーブルを有効化する。
+6. スケジューラ: `rooms` の `is_persistent = false` かつ `expires_at < now()` な行を削除する Edge Function / Cron ジョブを追加し、24h 消滅ルールを実現する。
 
 ---
 
